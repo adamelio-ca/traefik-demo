@@ -1,0 +1,82 @@
+version: "3.8"
+
+services:
+  # === TRAEFIK REVERSE PROXY ===
+  traefik:
+    image: traefik:v2.11
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"      # HTTP traffic
+      - "8090:8080"  # Traefik dashboard
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - traefik
+    restart: unless-stopped
+
+  # === PROJECT A SERVICES ===
+  project-a-web:
+    build: ./project-a/web
+    container_name: project-a-web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.projecta-web.rule=Host(`project-a.localhost`) && PathPrefix(`/`)"
+      - "traefik.http.routers.projecta-web.entrypoints=web"
+      - "traefik.http.services.projecta-web.loadbalancer.server.port=80"
+    networks:
+      - traefik
+    depends_on:
+      - traefik
+    restart: unless-stopped
+
+  project-a-api:
+    build: ./project-a/api
+    container_name: project-a-api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.projecta-api.rule=Host(`project-a.localhost`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.projecta-api.entrypoints=web"
+      - "traefik.http.services.projecta-api.loadbalancer.server.port=3000"
+    networks:
+      - traefik
+    depends_on:
+      - traefik
+    restart: unless-stopped
+
+  # === PROJECT B SERVICES ===
+  project-b-web:
+    build: ./project-b/web
+    container_name: project-b-web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.projectb-web.rule=Host(`project-b.localhost`) && PathPrefix(`/`)"
+      - "traefik.http.routers.projectb-web.entrypoints=web"
+      - "traefik.http.services.projectb-web.loadbalancer.server.port=80"
+    networks:
+      - traefik
+    depends_on:
+      - traefik
+    restart: unless-stopped
+
+  project-b-api:
+    build: ./project-b/api
+    container_name: project-b-api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.projectb-api.rule=Host(`project-b.localhost`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.projectb-api.entrypoints=web"
+      - "traefik.http.services.projectb-api.loadbalancer.server.port=3000"
+    networks:
+      - traefik
+    depends_on:
+      - traefik
+    restart: unless-stopped
+
+networks:
+  traefik:
+    driver: bridge
+    name: traefik
